@@ -11,9 +11,10 @@ DECLREST -> .
 DECL -> TOPOLOGY .
 DECL -> PG .
 
-TOPOLOGY -> topology id : TOPOLOGYREST .
+TOPOLOGY -> topology id | TOPOLOGYREST .
 
-TOPOLOGYREST -> basic { BASIC } .
+TOPOLOGYREST -> basic "{" BASIC "}" .
+TOPOLOGYREST -> aware "{" AWARE "}" .
 TOPOLOGYREST -> linear LIN .
 TOPOLOGYREST -> expr  EXPR  .
 
@@ -24,6 +25,8 @@ EDGE -> str arrow str .
 EDGEREST -> comma EDGE EDGEREST .
 EDGEREST -> .
 
+AWARE -> EDGE EDGEREST . 
+
 LIN -> str LINREST .
 
 LINREST -> comma LIN .
@@ -31,21 +34,19 @@ LINREST -> .
 
 EXPR -> SUM .
 
-SUM -> MUL SUM' .
+SUM -> MUL SUM2 .
 
-SUM' -> + MUL SUM' .
-SUM' -> .
+SUM2 -> "+" MUL SUM2 .
+SUM2 -> .
 
-MUL -> ELEM MUL' .
+MUL -> ELEM MUL2 .
 
-MUL' -> * ELEM MUL' .
-MUL' -> .
+MUL2 -> "*" ELEM MUL2 .
+MUL2 -> .
 
 ELEM -> id .
-ELEM -> ( SUM ) .
+ELEM -> "(" SUM ")" .
 
+PG -> pg id "{" PGREST "}" .
 
-PG -> pg id { PGREST } .
-
-PGREST -> file : str tag = str .
-
+PGREST -> file | str tag "=" str .
