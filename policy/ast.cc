@@ -6,7 +6,6 @@ ast_node_t::~ast_node_t() {}
 ast_expr_t::~ast_expr_t() {}
 ast_decl_t::~ast_decl_t() {}
 
-
 std::shared_ptr<ast_node_t> ast_construct(const dertree_t& node, std::shared_ptr<ast_node_t> arg) {
 	switch (node.label) {
 		case Nont::SOURCE: {

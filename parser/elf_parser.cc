@@ -5,8 +5,6 @@
 #include <iostream>
 #include <cstring>
 #include <fcntl.h>
-#include <exception>
-#include <algorithm>
 #include <sstream>
 #include <fstream>
 
