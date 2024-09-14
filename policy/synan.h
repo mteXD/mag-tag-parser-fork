@@ -16,6 +16,7 @@ enum class Nont {
 	BASIC,
 	EDGE,
 	EDGEREST,
+    AWARE,
 	LINEAR,
 	LINEARREST,
 	EXPR,

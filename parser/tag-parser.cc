@@ -9,8 +9,8 @@
 #include "elf_parser.h"
 #include "tag_parser.h"
 
-#include "policy.h"
 #include "lca.h"
+#include "policy.h"
 
 using namespace std;
 
@@ -25,7 +25,18 @@ static inline void out_print_line(
     ofstream &out, const uint64_t addr, const size_t size, const int tag_index
 );
 
-// Entry point
+/**
+ * ENTRY POINT
+ * 
+ * The function takes in 3 arguments:
+ * - the ELF file (result of compilation)
+ * - the tag file (contains annotated variables, like, atom <name>: "<tag>")
+ * - the policy file (contains topologies)
+ *
+ * 3 unique_ptr variables point to these files.
+ *
+ *
+ */
 int main(int argc, char *argv[]) {
     if (argc < 4) {
         cout << "Missing arguments!" << endl;
@@ -39,7 +50,7 @@ int main(int argc, char *argv[]) {
     unique_ptr<tag_data_t> tag_data;
 
     try {
-        policy          = make_unique<policy_t>(argv[3]);
+        policy          = make_unique<policy_t>(argv[3]); // Opens file
         auto &matrix    = policy->topology->matrix();
         auto lca_matrix = compute_lca(matrix);
 
