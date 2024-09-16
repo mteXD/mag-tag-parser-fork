@@ -5,38 +5,36 @@
 
 #include <vector>
 
-
+// Enum that defines non-terminals
 enum class Nont {
-	SOURCE,
-	DECLS,
-	DECLREST,
-	DECL,
-	TOPOLOGY,
-	TOPOLOGYREST,
-	BASIC,
-	EDGE,
-	EDGEREST,
+    SOURCE,
+    DECLS,
+    DECLREST,
+    DECL,
+    TOPOLOGY,
     AWARE,
-	LINEAR,
-	LINEARREST,
-	EXPR,
-	SUM,
-	SUMREST,
-	MUL,
-	MULREST,
-	ELEM,
-	PG,
-	PG_REST
+    TOPOLOGYREST,
+    BASIC,
+    EDGE,
+    EDGEREST,
+    LINEAR,
+    LINEARREST,
+    EXPR,
+    SUM,
+    SUMREST,
+    MUL,
+    MULREST,
+    ELEM,
+    PG,
+    PG_REST
 };
-
 
 struct dertree_t {
-	Nont label;
-	std::vector<dertree_t> subtrees;
-	std::vector<symbol_t> leaves;
+    Nont label;
+    std::vector<dertree_t> subtrees;
+    std::vector<symbol_t> leaves;
 };
 
-
-dertree_t parse_source(std::vector<symbol_t>& symbols);
+dertree_t parse_source(std::vector<symbol_t> &symbols);
 
 #endif

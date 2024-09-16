@@ -45,7 +45,7 @@ std::vector<symbol_t> lexify(const char *file_path) {
                 line += 1;
                 column = 0;
             }
-            continue;
+            continue; // TODO: unnecessary?
         } else if (c == '#') {
             do {
                 infile.get(c);
@@ -110,14 +110,14 @@ std::vector<symbol_t> lexify(const char *file_path) {
 
             if (s == "basic") {
                 symbols.push_back({Term::BASIC, s, line, start_column});
-            } else if (s == "aware") {
-                symbols.push_back({Term::AWARE, s, line, start_column});
             } else if (s == "linear") {
                 symbols.push_back({Term::LINEAR, s, line, start_column});
             } else if (s == "expr") {
                 symbols.push_back({Term::EXPR, s, line, start_column});
             } else if (s == "topology") {
                 symbols.push_back({Term::TOPOLOGY, s, line, start_column});
+            } else if (s == "aware") {
+                symbols.push_back({Term::AWARE, s, line, start_column});
             } else if (s == "pg") {
                 symbols.push_back({Term::PG, s, line, start_column});
             } else if (s == "file") {

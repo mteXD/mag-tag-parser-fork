@@ -11,61 +11,64 @@
 #include <sstream>
 #include <stdexcept>
 
-static std::map<std::string, std::shared_ptr<topology_t>>
-    get_simple_topologies(const std::shared_ptr<ast_node_t> &ast);
-static std::map<std::string, std::shared_ptr<topology_t>> &add_expr_topologies(
-    const std::shared_ptr<ast_node_t> &ast,
-    std::map<std::string, std::shared_ptr<topology_t>> &topologies
+using namespace std;
+
+static map<string, shared_ptr<topology_t>> get_simple_topologies(
+    const shared_ptr<ast_node_t> &ast
 );
-static std::shared_ptr<topology_basic_t> construct_expr_topology(
-    std::shared_ptr<ast_expr_t> &expr,
-    std::map<std::string, std::shared_ptr<topology_t>> &topologies,
-    std::shared_ptr<topology_basic_t> &arg
+static map<string, shared_ptr<topology_t>> &add_expr_topologies(
+    const shared_ptr<ast_node_t> &ast,
+    map<string, shared_ptr<topology_t>> &topologies
+);
+static shared_ptr<topology_basic_t> construct_expr_topology(
+    shared_ptr<ast_expr_t> &expr,
+    map<string, shared_ptr<topology_t>> &topologies,
+    shared_ptr<topology_basic_t> &arg
 );
 
-static std::vector<pg_t> get_pgs(
-    const std::shared_ptr<ast_node_t> &ast, const topology_basic_t &topology
+static vector<pg_t> get_pgs(
+    const shared_ptr<ast_node_t> &ast, const topology_basic_t &topology
 );
 
-static inline std::string remove_space(const std::string &s);
+static inline string remove_space(const string &s);
 
 static void topological_sort_dfs(
-    const std::vector<std::vector<uint8_t>> &m, const int index,
-    std::vector<bool> &discovered, std::vector<int> &end_time, int &time,
-    std::list<int> &topological_order
+    const vector<vector<uint8_t>> &m,
+    const int index,
+    vector<bool> &discovered,
+    vector<int> &end_time,
+    int &time,
+    list<int> &topological_order
 );
-static std::list<int>
-    topological_ordering(const std::vector<std::vector<uint8_t>> &m);
+static list<int> topological_ordering(const vector<vector<uint8_t>> &m);
 
 /**
  * @param file_path Takes the file path to the policy file as a string. The file
  * then gets lexified and parsed, after which an AST tree is constructed.
  */
 policy_t::policy_t(const char *file_path) {
-    std::vector<symbol_t> symbols = lexify(file_path);
+    vector<symbol_t> symbols = lexify(file_path);
 
-    dertree_t tree                  = parse_source(symbols); // TODO
-    std::shared_ptr<ast_node_t> ast = ast_construct(tree, nullptr); // TODO
+    dertree_t tree             = parse_source(symbols);
+    shared_ptr<ast_node_t> ast = ast_construct(tree, nullptr); // TODO
 
     topologies = get_simple_topologies(ast);
     topologies = add_expr_topologies(ast, topologies);
 
-    topology = std::make_shared<topology_basic_t>("Total");
+    topology = make_shared<topology_basic_t>("Total");
 
     for (auto &tuple : topologies) {
-        if (auto t =
-                std::dynamic_pointer_cast<topology_basic_t>(tuple.second)) {
+        if (auto t = dynamic_pointer_cast<topology_basic_t>(tuple.second)) {
             for (auto &m : t->index_mapping()) {
                 tags.insert(m.first);
             }
             topology->disjoint_union(topology, t);
         }
-        if (auto t =
-                std::dynamic_pointer_cast<topology_linear_t>(tuple.second)) {
+        if (auto t = dynamic_pointer_cast<topology_linear_t>(tuple.second)) {
             for (auto &s : t->get_tags()) {
                 tags.insert(s);
             }
-            auto converted = std::make_shared<topology_basic_t>(*t);
+            auto converted = make_shared<topology_basic_t>(*t);
             topology->disjoint_union(topology, converted);
         }
     }
@@ -79,26 +82,26 @@ policy_t::policy_t(const char *file_path) {
     perimeter_guards = get_pgs(ast, *topology);
 }
 
-static std::map<std::string, std::shared_ptr<topology_t>>
-    get_simple_topologies(const std::shared_ptr<ast_node_t> &ast) {
-    std::map<std::string, std::shared_ptr<topology_t>> topologies;
-    if (auto source = std::dynamic_pointer_cast<ast_source_t>(ast)) {
+static map<string, shared_ptr<topology_t>> get_simple_topologies(
+    const shared_ptr<ast_node_t> &ast
+) {
+    map<string, shared_ptr<topology_t>> topologies;
+    if (auto source = dynamic_pointer_cast<ast_source_t>(ast)) {
         for (auto &decl : source->get_decls()) {
-            if (auto t =
-                    std::dynamic_pointer_cast<ast_topology_basic_t>(decl)) {
+            if (auto t = dynamic_pointer_cast<ast_topology_basic_t>(decl)) {
                 if (topologies.find(t->get_name()) != topologies.end()) {
-                    std::ostringstream oss;
+                    ostringstream oss;
                     oss << "Topology '" << t->get_name()
                         << "' cannot be declared twice!";
-                    throw std::runtime_error(oss.str());
+                    throw runtime_error(oss.str());
                 }
-                std::set<std::string> vertices;
+                set<string> vertices;
                 for (auto &edge : t->get_edges()) {
                     vertices.insert(edge->get_source()->get_name());
                     vertices.insert(edge->get_end()->get_name());
                 }
-                auto basic =
-                    std::make_shared<topology_basic_t>(t->get_name(), vertices);
+                auto basic
+                    = make_shared<topology_basic_t>(t->get_name(), vertices);
                 for (auto &edge : t->get_edges()) {
                     basic->add_edge(
                         edge->get_source()->get_name(),
@@ -107,17 +110,15 @@ static std::map<std::string, std::shared_ptr<topology_t>>
                 }
 
                 topologies[t->get_name()] = basic;
-            } else if (auto t =
-                           std::dynamic_pointer_cast<ast_topology_linear_t>(decl
-                           )) {
+            } else if (auto t
+                       = dynamic_pointer_cast<ast_topology_linear_t>(decl)) {
                 if (topologies.find(t->get_name()) != topologies.end()) {
-                    std::ostringstream oss;
+                    ostringstream oss;
                     oss << "Topology '" << t->get_name()
                         << "' cannot be declared twice!";
-                    throw std::runtime_error(oss.str());
+                    throw runtime_error(oss.str());
                 }
-                auto linear =
-                    std::make_shared<topology_linear_t>(t->get_name());
+                auto linear = make_shared<topology_linear_t>(t->get_name());
                 for (auto &tag : t->get_tags()) {
                     linear->add_tag(tag->get_name());
                 }
@@ -128,22 +129,21 @@ static std::map<std::string, std::shared_ptr<topology_t>>
     return topologies;
 }
 
-static std::map<std::string, std::shared_ptr<topology_t>> &add_expr_topologies(
-    const std::shared_ptr<ast_node_t> &ast,
-    std::map<std::string, std::shared_ptr<topology_t>> &topologies
+static map<string, shared_ptr<topology_t>> &add_expr_topologies(
+    const shared_ptr<ast_node_t> &ast,
+    map<string, shared_ptr<topology_t>> &topologies
 ) {
-    if (auto source = std::dynamic_pointer_cast<ast_source_t>(ast)) {
+    if (auto source = dynamic_pointer_cast<ast_source_t>(ast)) {
         for (auto &decl : source->get_decls()) {
-            if (auto t = std::dynamic_pointer_cast<ast_topology_expr_t>(decl)) {
+            if (auto t = dynamic_pointer_cast<ast_topology_expr_t>(decl)) {
                 if (topologies.find(t->get_name()) != topologies.end()) {
-                    std::ostringstream oss;
+                    ostringstream oss;
                     oss << "Topology '" << t->get_name()
                         << "' cannot be declared twice!";
-                    throw std::runtime_error(oss.str());
+                    throw runtime_error(oss.str());
                 }
-                auto topology =
-                    std::make_shared<topology_basic_t>(t->get_name());
-                topology = construct_expr_topology(
+                auto topology = make_shared<topology_basic_t>(t->get_name());
+                topology      = construct_expr_topology(
                     t->get_expr(), topologies, topology
                 );
                 topology->set_name_prefix(t->get_name());
@@ -154,65 +154,65 @@ static std::map<std::string, std::shared_ptr<topology_t>> &add_expr_topologies(
     return topologies;
 }
 
-static std::shared_ptr<topology_basic_t> construct_expr_topology(
-    std::shared_ptr<ast_expr_t> &expr,
-    std::map<std::string, std::shared_ptr<topology_t>> &topologies,
-    std::shared_ptr<topology_basic_t> &arg
+static shared_ptr<topology_basic_t> construct_expr_topology(
+    shared_ptr<ast_expr_t> &expr,
+    map<string, shared_ptr<topology_t>> &topologies,
+    shared_ptr<topology_basic_t> &arg
 ) {
-    if (auto e = std::dynamic_pointer_cast<ast_expr_bin_t>(expr)) {
+    if (auto e = dynamic_pointer_cast<ast_expr_bin_t>(expr)) {
         auto lhs = construct_expr_topology(e->get_lhs(), topologies, arg);
         auto rhs = construct_expr_topology(e->get_rhs(), topologies, arg);
         switch (e->get_oper()) {
-        case ast_expr_bin_t::Oper::SUM: {
-            arg->disjoint_union(lhs, rhs);
-            return arg;
+            case ast_expr_bin_t::Oper::SUM:
+                {
+                    arg->disjoint_union(lhs, rhs);
+                    return arg;
+                }
+            case ast_expr_bin_t::Oper::MUL:
+                {
+                    arg->carthesian_product(lhs, rhs);
+                    return arg;
+                }
+            default: throw runtime_error("Unsupported binary operaion!");
         }
-        case ast_expr_bin_t::Oper::MUL: {
-            arg->carthesian_product(lhs, rhs);
-            return arg;
-        }
-        default:
-            throw std::runtime_error("Unsupported binary operaion!");
-        }
-    } else if (auto e = std::dynamic_pointer_cast<ast_tag_t>(expr)) {
+    } else if (auto e = dynamic_pointer_cast<ast_tag_t>(expr)) {
         try {
-            std::shared_ptr<topology_t> &t = topologies.at(e->get_name());
-            if (auto tl = std::dynamic_pointer_cast<topology_linear_t>(t)) {
-                return std::make_shared<topology_basic_t>(*tl);
-            } else if (auto tb =
-                           std::dynamic_pointer_cast<topology_basic_t>(t)) {
+            shared_ptr<topology_t> &t = topologies.at(e->get_name());
+            if (auto tl = dynamic_pointer_cast<topology_linear_t>(t)) {
+                return make_shared<topology_basic_t>(*tl);
+            } else if (auto tb = dynamic_pointer_cast<topology_basic_t>(t)) {
                 return tb;
             }
-            std::ostringstream oss;
+            ostringstream oss;
             oss << "Topology '" << e->get_name()
                 << "' should be linear or basic!";
-            throw std::runtime_error(oss.str());
-        } catch (std::out_of_range &err) {
-            std::ostringstream oss;
+            throw runtime_error(oss.str());
+        } catch (out_of_range &err) {
+            ostringstream oss;
             oss << "Unknown topology: '" << e->get_name() << "'!";
-            throw std::runtime_error(oss.str());
+            throw runtime_error(oss.str());
         }
     } else {
-        throw std::runtime_error("Unknown expression!");
+        throw runtime_error("Unknown expression!");
     }
 }
 
-static std::vector<pg_t> get_pgs(
-    const std::shared_ptr<ast_node_t> &ast, const topology_basic_t &topology
+static vector<pg_t> get_pgs(
+    const shared_ptr<ast_node_t> &ast, const topology_basic_t &topology
 ) {
-    std::vector<pg_t> perimeter_guards;
-    if (auto source = std::dynamic_pointer_cast<ast_source_t>(ast)) {
+    vector<pg_t> perimeter_guards;
+    if (auto source = dynamic_pointer_cast<ast_source_t>(ast)) {
         for (auto &decl : source->get_decls()) {
-            if (auto t = std::dynamic_pointer_cast<ast_pg_t>(decl)) {
+            if (auto t = dynamic_pointer_cast<ast_pg_t>(decl)) {
                 try {
                     auto tag = topology.get_index(t->get_tag());
                     pg_t pg(t->get_name(), t->get_file(), tag);
                     perimeter_guards.push_back(pg);
-                } catch (std::out_of_range &e) {
-                    std::ostringstream oss;
+                } catch (out_of_range &e) {
+                    ostringstream oss;
                     oss << "Unknown tag for perimeter guard '" << t->get_name()
                         << "': '" << t->get_tag() << "'!";
-                    throw std::runtime_error(oss.str());
+                    throw runtime_error(oss.str());
                 }
             }
         }
@@ -220,22 +220,22 @@ static std::vector<pg_t> get_pgs(
     return perimeter_guards;
 }
 
-topology_basic_t::topology_basic_t(const std::string &n) {
+topology_basic_t::topology_basic_t(const string &n) {
     name      = n;
-    mvertices = std::vector<std::vector<uint8_t>>();
-    toindex   = std::map<std::string, int>();
-    fromindex = std::map<int, std::string>();
+    mvertices = vector<vector<uint8_t>>();
+    toindex   = map<string, int>();
+    fromindex = map<int, string>();
 }
 
 topology_basic_t::topology_basic_t(
-    const std::string &n, const std::set<std::string> &vertices
+    const string &n, const set<string> &vertices
 ) {
     name      = n;
-    mvertices = std::vector<std::vector<uint8_t>>(
-        vertices.size(), std::vector<uint8_t>(vertices.size())
+    mvertices = vector<vector<uint8_t>>(
+        vertices.size(), vector<uint8_t>(vertices.size())
     );
-    toindex   = std::map<std::string, int>();
-    fromindex = std::map<int, std::string>();
+    toindex   = map<string, int>();
+    fromindex = map<int, string>();
     int i     = 0;
     for (auto &v : vertices) {
         toindex[fullname(v)] = i;
@@ -248,40 +248,38 @@ topology_basic_t::topology_basic_t(
 topology_basic_t::topology_basic_t(topology_linear_t &t) {
     name      = t.get_name();
     size_t n  = t.get_tags().size();
-    mvertices = std::vector<std::vector<uint8_t>>(n, std::vector<uint8_t>(n));
+    mvertices = vector<vector<uint8_t>>(n, vector<uint8_t>(n));
     for (size_t i = 0; i < n; i++) {
         mvertices[i][i] = 1;
         if (i + 1 < mvertices.size()) {
             mvertices[i][i + 1] = 1;
         }
-        std::string tag = remove_space(t.get_tags().at(i));
-        toindex[tag]    = i;
-        fromindex[i]    = tag;
+        string tag   = remove_space(t.get_tags().at(i));
+        toindex[tag] = i;
+        fromindex[i] = tag;
     }
 }
 
-void topology_basic_t::add_edge(
-    const std::string &source, const std::string &end
-) {
+void topology_basic_t::add_edge(const string &source, const string &end) {
     int i           = toindex.at(fullname(source));
     int j           = toindex.at(fullname(end));
     mvertices[i][j] = 1;
 }
 
 void topology_basic_t::print() {
-    std::cout << "Topology: '" << name << "'" << std::endl;
+    cout << "Topology: '" << name << "'" << endl;
     for (auto &kv : toindex) {
-        std::cout << "\t'" << kv.first << "', " << kv.second << ":";
+        cout << "\t'" << kv.first << "', " << kv.second << ":";
         for (size_t j = 0; j < mvertices.size(); j++) {
-            std::cout << " " << (int)mvertices[kv.second][j];
+            cout << " " << (int) mvertices[kv.second][j];
         }
-        std::cout << std::endl;
+        cout << endl;
     }
 }
 
 void topology_basic_t::carthesian_product(
-    const std::shared_ptr<topology_basic_t> &t1,
-    const std::shared_ptr<topology_basic_t> &t2
+    const shared_ptr<topology_basic_t> &t1,
+    const shared_ptr<topology_basic_t> &t2
 ) {
     size_t n        = t1->size();
     size_t m        = t2->size();
@@ -290,14 +288,14 @@ void topology_basic_t::carthesian_product(
     auto &mapping_a = t1->index_mapping();
     auto &mapping_b = t2->index_mapping();
 
-    std::map<std::string, int> r_toindex;
-    std::map<int, std::string> r_fromindex;
+    map<string, int> r_toindex;
+    map<int, string> r_fromindex;
     for (auto &tuple_a : mapping_a) {
         for (auto &tuple_b : mapping_b) {
-            std::string name = "(" + tuple_a.first + "," + tuple_b.first + ")";
-            int index        = tuple_a.second * m + tuple_b.second;
-            std::string tag  = remove_space(name);
-            r_toindex[tag]   = index;
+            string name    = "(" + tuple_a.first + "," + tuple_b.first + ")";
+            int index      = tuple_a.second * m + tuple_b.second;
+            string tag     = remove_space(name);
+            r_toindex[tag] = index;
             r_fromindex[index] = tag;
         }
     }
@@ -306,7 +304,7 @@ void topology_basic_t::carthesian_product(
     fromindex.clear();
     fromindex = r_fromindex;
 
-    std::vector<std::vector<uint8_t>> r(n * m, std::vector<uint8_t>(n * m));
+    vector<vector<uint8_t>> r(n * m, vector<uint8_t>(n * m));
 
     /* Do R = A (x) I_2 */
     for (size_t i = 0; i < n; i++) {
@@ -334,8 +332,8 @@ void topology_basic_t::carthesian_product(
 }
 
 void topology_basic_t::disjoint_union(
-    const std::shared_ptr<topology_basic_t> &t1,
-    const std::shared_ptr<topology_basic_t> &t2
+    const shared_ptr<topology_basic_t> &t1,
+    const shared_ptr<topology_basic_t> &t2
 ) {
     size_t n        = t1->size();
     size_t m        = t2->size();
@@ -344,15 +342,15 @@ void topology_basic_t::disjoint_union(
     auto &mapping_a = t1->index_mapping();
     auto &mapping_b = t2->index_mapping();
 
-    std::map<std::string, int> r_toindex;
-    std::map<int, std::string> r_fromindex;
+    map<string, int> r_toindex;
+    map<int, string> r_fromindex;
     for (auto &tuple : mapping_a) {
-        std::string tag           = remove_space(tuple.first);
+        string tag                = remove_space(tuple.first);
         r_toindex[tag]            = tuple.second;
         r_fromindex[tuple.second] = tag;
     }
     for (auto &tuple : mapping_b) {
-        std::string tag               = remove_space(tuple.first);
+        string tag                    = remove_space(tuple.first);
         r_toindex[tag]                = n + tuple.second;
         r_fromindex[n + tuple.second] = tag;
     }
@@ -361,7 +359,7 @@ void topology_basic_t::disjoint_union(
     fromindex.clear();
     fromindex = r_fromindex;
 
-    std::vector<std::vector<uint8_t>> r(n + m, std::vector<uint8_t>(n + m));
+    vector<vector<uint8_t>> r(n + m, vector<uint8_t>(n + m));
 
     /* Perform direct sum of matrices */
     for (size_t i = 0; i < n; i++) {
@@ -383,11 +381,11 @@ void topology_basic_t::disjoint_union(
     mvertices = r;
 }
 
-void topology_basic_t::set_name_prefix(const std::string &prefix) {
-    std::map<std::string, int> updated_to;
-    std::map<int, std::string> updated_from;
+void topology_basic_t::set_name_prefix(const string &prefix) {
+    map<string, int> updated_to;
+    map<int, string> updated_from;
     for (auto &t : toindex) {
-        std::string r          = remove_space(prefix + "." + t.first);
+        string r               = remove_space(prefix + "." + t.first);
         updated_to[r]          = t.second;
         updated_from[t.second] = r;
     }
@@ -397,48 +395,48 @@ void topology_basic_t::set_name_prefix(const std::string &prefix) {
     fromindex = updated_from;
 }
 
-std::string topology_t::fullname(const std::string &tag) {
+string topology_t::fullname(const string &tag) {
     return remove_space(name + "." + tag);
 }
 
-bool policy_t::contains_tag(const std::string &tag) const {
-    std::string cleaned = remove_space(tag);
+bool policy_t::contains_tag(const string &tag) const {
+    string cleaned = remove_space(tag);
     return tags.find(cleaned) != tags.end();
 }
 
-static inline std::string remove_space(const std::string &s) {
-    std::string r = s;
-    r.erase(std::remove_if(r.begin(), r.end(), isspace), r.end());
+static inline string remove_space(const string &s) {
+    string r = s;
+    r.erase(remove_if(r.begin(), r.end(), isspace), r.end());
     return r;
 }
 
-int policy_t::tag_index(const std::string &tag) const {
+int policy_t::tag_index(const string &tag) const {
     return topology->get_index(tag);
 }
 
-int topology_basic_t::get_index(const std::string &tag) const {
+int topology_basic_t::get_index(const string &tag) const {
     return toindex.at(remove_space(tag));
 }
 
-std::string topology_basic_t::get_tag(int index) const {
+string topology_basic_t::get_tag(int index) const {
     return fromindex.at(index);
 }
 
-int topology_linear_t::get_index(const std::string &tag) const {
-    std::string cleaned = remove_space(tag);
+int topology_linear_t::get_index(const string &tag) const {
+    string cleaned = remove_space(tag);
     for (size_t i = 0; i < tags.size(); i++) {
         if (tags[i] == cleaned) {
             return i;
         }
     }
-    std::ostringstream oss;
+    ostringstream oss;
     oss << "Tag '" << tag << "' not in the topology!";
-    throw std::runtime_error(oss.str());
+    throw runtime_error(oss.str());
 }
 
 void topology_basic_t::add_unknown() {
-    auto new_toindex   = std::map<std::string, int>();
-    auto new_fromindex = std::map<int, std::string>();
+    auto new_toindex   = map<string, int>();
+    auto new_fromindex = map<int, string>();
     for (auto &t : toindex) {
         new_toindex[t.first]        = t.second + 1;
         new_fromindex[t.second + 1] = t.first;
@@ -453,29 +451,32 @@ void topology_basic_t::add_unknown() {
     for (auto &row : mvertices) {
         row.emplace(row.begin(), 0);
     }
-    auto unknowns = std::vector<uint8_t>(mvertices.size() + 1, 1);
+    auto unknowns = vector<uint8_t>(mvertices.size() + 1, 1);
     mvertices.emplace(mvertices.begin(), unknowns);
 }
 
-void policy_t::dump(std::ofstream &out) {
-    out << topology->size() << " " << perimeter_guards.size() << std::endl;
+void policy_t::dump(ofstream &out) {
+    out << topology->size() << " " << perimeter_guards.size() << endl;
     for (size_t i = 0; i < lca_matrix.size(); i++) {
         out << topology->get_tag(i);
         for (size_t j = 0; j < lca_matrix[i].size(); j++) {
-            out << " " << (int)lca_matrix[i][j];
+            out << " " << (int) lca_matrix[i][j];
         }
-        out << std::endl;
+        out << endl;
     }
 
     for (auto &pg : perimeter_guards) {
-        out << pg.name << " \"" << pg.file << "\" " << (int)pg.tag << std::endl;
+        out << pg.name << " \"" << pg.file << "\" " << (int) pg.tag << endl;
     }
 }
 
 static void topological_sort_dfs(
-    const std::vector<std::vector<uint8_t>> &m, const int index,
-    std::vector<bool> &discovered, std::vector<int> &end_time, int &time,
-    std::list<int> &topological_order
+    const vector<vector<uint8_t>> &m,
+    const int index,
+    vector<bool> &discovered,
+    vector<int> &end_time,
+    int &time,
+    list<int> &topological_order
 ) {
     discovered[index] = true;
     for (size_t j = 0; j < m[index].size(); j++) {
@@ -490,12 +491,11 @@ static void topological_sort_dfs(
     time++;
 }
 
-static std::list<int>
-    topological_ordering(const std::vector<std::vector<uint8_t>> &m) {
-    std::vector<bool> discovered(m.size());
-    std::vector<int> end_time(m.size());
+static list<int> topological_ordering(const vector<vector<uint8_t>> &m) {
+    vector<bool> discovered(m.size());
+    vector<int> end_time(m.size());
     int time = 0;
-    std::list<int> topological_order;
+    list<int> topological_order;
 
     for (size_t i = 0; i < m.size(); i++) {
         if (!discovered[i]) {
@@ -508,9 +508,9 @@ static std::list<int>
     for (size_t i = 0; i < m.size(); i++) {
         for (size_t j = 0; j < m.size(); j++) {
             if (i != j && m[i][j] > 0 && end_time[i] <= end_time[j]) {
-                std::ostringstream oss;
+                ostringstream oss;
                 oss << "The policy is not a directed acyclical graph!"; // <<
-                throw std::runtime_error(oss.str());
+                throw runtime_error(oss.str());
             }
         }
     }

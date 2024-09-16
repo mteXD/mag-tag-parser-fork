@@ -16,7 +16,6 @@ enum class Term {
     EQUAL,
     ARROW,
     BASIC,
-    AWARE,
     LINEAR,
     EXPR,
     TOPOLOGY,
@@ -24,9 +23,15 @@ enum class Term {
     PG_FILE,
     IDENTIFIER,
     STRING,
+    AWARE,
     END
 };
 
+/**
+ * term: type of terminal, see `enum class Term`.
+ * name: value of terminal; eg. value of ARROW would be "->". See lexify().
+ * line, column: self-explainatory
+ */
 struct symbol_t {
     Term term;
     std::string name;
