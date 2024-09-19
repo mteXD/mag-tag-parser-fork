@@ -10,6 +10,7 @@
 #include <list>
 #include <sstream>
 #include <stdexcept>
+#include <vector>
 
 using namespace std;
 
@@ -47,16 +48,21 @@ static list<int> topological_ordering(const vector<vector<uint8_t>> &m);
  * then gets lexified and parsed, after which an AST tree is constructed.
  */
 policy_t::policy_t(const char *file_path) {
-    vector<symbol_t> symbols = lexify(file_path);
-
+    vector<symbol_t> symbols   = lexify(file_path);
     dertree_t tree             = parse_source(symbols);
-    shared_ptr<ast_node_t> ast = ast_construct(tree, nullptr); // TODO
+    shared_ptr<ast_node_t> ast = ast_construct(tree, nullptr);
 
     topologies = get_simple_topologies(ast);
     topologies = add_expr_topologies(ast, topologies);
+    topology   = make_shared<topology_basic_t>("Total");
 
-    topology = make_shared<topology_basic_t>("Total");
-
+    /* At this point, `topologies` contains {topology name}->{topology_t}
+     * translations.
+     * The following for loop goes over all these translations and
+     * - inserts the current {topology name} into a set containing all topology
+     *  names, first for basic and then for linear topologies.
+     * - adds the current (basic or linear) topology to the current topology.
+     */
     for (auto &tuple : topologies) {
         if (auto t = dynamic_pointer_cast<topology_basic_t>(tuple.second)) {
             for (auto &m : t->index_mapping()) {
@@ -68,6 +74,7 @@ policy_t::policy_t(const char *file_path) {
             for (auto &s : t->get_tags()) {
                 tags.insert(s);
             }
+            // Converts linear topologies to basic
             auto converted = make_shared<topology_basic_t>(*t);
             topology->disjoint_union(topology, converted);
         }
@@ -76,30 +83,69 @@ policy_t::policy_t(const char *file_path) {
     tags.insert("unknown");
     topology->add_unknown();
 
-    // check DAG
+    // check DAG (Directed Acyclic Graph)
     topological_ordering(topology->matrix());
 
     perimeter_guards = get_pgs(ast, *topology);
+
+    /* TODO: At this point, topologies must also contain the downgrader tags.
+     *
+     * The policy.mtag that is the result of tag-parser.cc program contains a
+     * matrix of LCAs (Least Common Ancestors), which has the shape of:
+     *
+     *      ...
+     *      unknown 0 1 2
+     *      PP.private 1 1 1
+     *      PP.public 2 1 2
+     *      output "stdout" 2
+     *      ...
+     *
+     * One way to add the aware flags, is to make another matrix of booleans,
+     * such that if a \——> b, then m[a][b] = 1, otherwise m[a][b] = 0
+     *
+     * When a retag command is called, the CPU must check `if m[a][b]`. If = 0,
+     * it results in a hard-fault.
+     *
+     * TO RECAP (the unwritten too):
+     * When coming to the aware declaration, the tag-parser.cc must first check
+     * whether all tags in declrest are already defined. If not => error.
+     * It then undergoes the same process as a normal topology
+     * (`get_simple_topologies()` and `add_expr_topologies()`). This resoult
+     * would normally get further processed into a LCA matrix, but here there we
+     * must print the adjacency matrix to the policy.mtag
+     */
 }
 
+/**
+ * @brief goes over all simple topologies (basic and linear topologies) and
+ * processes them.
+ *
+ * @param ast: the AST (abstract syntax tree) from ast_construct().
+ */
 static map<string, shared_ptr<topology_t>> get_simple_topologies(
     const shared_ptr<ast_node_t> &ast
 ) {
     map<string, shared_ptr<topology_t>> topologies;
+
     if (auto source = dynamic_pointer_cast<ast_source_t>(ast)) {
         for (auto &decl : source->get_decls()) {
             if (auto t = dynamic_pointer_cast<ast_topology_basic_t>(decl)) {
+                // Check for double definition
                 if (topologies.find(t->get_name()) != topologies.end()) {
                     ostringstream oss;
                     oss << "Topology '" << t->get_name()
                         << "' cannot be declared twice!";
                     throw runtime_error(oss.str());
                 }
+
+                // Goes over all edges and adds their source and end to
+                // set<string> vertices.
                 set<string> vertices;
                 for (auto &edge : t->get_edges()) {
                     vertices.insert(edge->get_source()->get_name());
                     vertices.insert(edge->get_end()->get_name());
                 }
+
                 auto basic
                     = make_shared<topology_basic_t>(t->get_name(), vertices);
                 for (auto &edge : t->get_edges()) {
@@ -112,12 +158,14 @@ static map<string, shared_ptr<topology_t>> get_simple_topologies(
                 topologies[t->get_name()] = basic;
             } else if (auto t
                        = dynamic_pointer_cast<ast_topology_linear_t>(decl)) {
+                // Check for double definition
                 if (topologies.find(t->get_name()) != topologies.end()) {
                     ostringstream oss;
                     oss << "Topology '" << t->get_name()
                         << "' cannot be declared twice!";
                     throw runtime_error(oss.str());
                 }
+
                 auto linear = make_shared<topology_linear_t>(t->get_name());
                 for (auto &tag : t->get_tags()) {
                     linear->add_tag(tag->get_name());
@@ -136,16 +184,19 @@ static map<string, shared_ptr<topology_t>> &add_expr_topologies(
     if (auto source = dynamic_pointer_cast<ast_source_t>(ast)) {
         for (auto &decl : source->get_decls()) {
             if (auto t = dynamic_pointer_cast<ast_topology_expr_t>(decl)) {
+                // Check for double definition
                 if (topologies.find(t->get_name()) != topologies.end()) {
                     ostringstream oss;
                     oss << "Topology '" << t->get_name()
                         << "' cannot be declared twice!";
                     throw runtime_error(oss.str());
                 }
+
                 auto topology = make_shared<topology_basic_t>(t->get_name());
                 topology      = construct_expr_topology(
                     t->get_expr(), topologies, topology
                 );
+
                 topology->set_name_prefix(t->get_name());
                 topologies[t->get_name()] = topology;
             }
@@ -173,7 +224,8 @@ static shared_ptr<topology_basic_t> construct_expr_topology(
                     arg->carthesian_product(lhs, rhs);
                     return arg;
                 }
-            default: throw runtime_error("Unsupported binary operaion!");
+            default:
+                throw runtime_error("Unsupported binary operaion!");
         }
     } else if (auto e = dynamic_pointer_cast<ast_tag_t>(expr)) {
         try {
@@ -195,6 +247,13 @@ static shared_ptr<topology_basic_t> construct_expr_topology(
     } else {
         throw runtime_error("Unknown expression!");
     }
+}
+
+static map<string, shared_ptr<topology_t>> get_awares(
+    const shared_ptr<ast_node_t> &ast, const topology_basic_t &topology
+) {
+    map<string, shared_ptr<aware_t>> topologies;
+
 }
 
 static vector<pg_t> get_pgs(

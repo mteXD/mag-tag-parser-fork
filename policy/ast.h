@@ -1,12 +1,15 @@
 #ifndef _POLICY_AST_H_
 #define _POLICY_AST_H_
 
+#include "policy.h"
 #include "synan.h"
 
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
+
+using namespace std;
 
 /* Interfaces */
 
@@ -38,86 +41,93 @@ class ast_topology_t : public ast_decl_t {
   public:
     virtual ~ast_topology_t() {}
 
-    void set_name(const std::string &n) {
+    void set_name(const string &n) {
         name = n;
     }
 
-    std::string &get_name() {
+    string &get_name() {
         return name;
     }
 
     virtual void print() {}
 
   protected:
-    std::string name;
-};
-
-/* Aware base class */
-class ast_aware_t : public ast_decl_t {
-  public:
-    virtual ~ast_aware_t() {}
-
-    void set_name(const std::string &n) {
-        name = n;
-    }
-
-    std::string &get_name() {
-        return name;
-    }
-
-    virtual void print() {}
-
-  protected:
-    std::string name;
-};
-
-/* Derived classes */
+    string name;
+}; /* Derived classes */
 
 class ast_pg_t : public ast_decl_t {
   public:
-    ast_pg_t(const std::string &file, const std::string &tag) :
-        tag(tag), file(file) {}
+    ast_pg_t(const string &file, const string &tag) : tag(tag), file(file) {}
 
     ~ast_pg_t() {}
 
-    void set_name(const std::string &n) {
+    void set_name(const string &n) {
         name = n;
     }
 
     void print() {
-        std::cout << name << ": " << file << " -> " << tag << std::endl;
+        cout << name << ": " << file << " -> " << tag << endl;
     }
 
-    std::string get_name() {
+    string get_name() {
         return name;
     }
 
-    std::string get_tag() {
+    string get_tag() {
         return tag;
     }
 
-    std::string get_file() {
+    string get_file() {
         return file;
     }
 
   private:
-    std::string name;
-    std::string tag;
-    std::string file;
+    string name;
+    string tag;
+    string file;
+};
+
+class ast_aware_t : public ast_decl_t {
+  public:
+    ~ast_aware_t() {}
+
+    void set_name(const string &n) {
+        name = n;
+    }
+
+    string &get_name() {
+        return name;
+    }
+
+    void set_topology(const shared_ptr<ast_topology_t> &n) {
+        topology = n;
+    }
+
+    shared_ptr<ast_topology_t> &get_topology() {
+        return topology;
+    }
+
+    void print() {
+        topology->print();
+    }
+
+  protected:
+    string name;
+    shared_ptr<ast_topology_t> topology;
 };
 
 class ast_source_t : public ast_node_t {
   private:
-    std::vector<std::shared_ptr<ast_decl_t>> decls;
+    vector<shared_ptr<ast_decl_t>> decls;
 
   public:
     ast_source_t() {}
 
-    void add_decl(const std::shared_ptr<ast_decl_t> &d) {
+    void add_decl(const shared_ptr<ast_decl_t> &d) {
         decls.push_back(d);
     }
 
-    std::vector<std::shared_ptr<ast_decl_t>> &get_decls() {
+    vector<shared_ptr<ast_decl_t>> &get_decls() {
         return decls;
     }
 
@@ -130,16 +140,16 @@ class ast_source_t : public ast_node_t {
 
 class ast_decls_t : public ast_node_t {
   private:
-    std::vector<std::shared_ptr<ast_decl_t>> decls;
+    vector<shared_ptr<ast_decl_t>> decls;
 
   public:
     ast_decls_t() {};
 
-    std::vector<std::shared_ptr<ast_decl_t>> &get_decls() {
+    vector<shared_ptr<ast_decl_t>> &get_decls() {
         return decls;
     }
 
-    void add(const std::shared_ptr<ast_decl_t> &d) {
+    void add(const shared_ptr<ast_decl_t> &d) {
         decls.push_back(d);
     }
 
@@ -152,68 +162,68 @@ class ast_decls_t : public ast_node_t {
 
 class ast_tag_t : public ast_expr_t {
   private:
-    std::string name;
+    string name;
 
   public:
     ast_tag_t();
 
-    ast_tag_t(const std::string &n) : name(n) {}
+    ast_tag_t(const string &n) : name(n) {}
 
     ~ast_tag_t() {}
 
-    std::string &get_name() {
+    string &get_name() {
         return name;
     }
 
     void print() {
-        std::cout << "\tTag '" << name << "'" << std::endl;
+        cout << "\tTag '" << name << "'" << endl;
     }
 };
 
 class ast_edge_t : public ast_node_t {
   public:
-    ast_edge_t(const std::string &s, const std::string &e) :
+    ast_edge_t(const string &s, const string &e) :
         source(new ast_tag_t(s)), end(new ast_tag_t(e)) {}
 
     void print() {
         source.get()->print();
-        std::cout << "\t--->" << std::endl;
+        cout << "\t--->" << endl;
         end.get()->print();
     }
 
-    std::shared_ptr<ast_tag_t> &get_source() {
+    shared_ptr<ast_tag_t> &get_source() {
         return source;
     }
 
-    std::shared_ptr<ast_tag_t> &get_end() {
+    shared_ptr<ast_tag_t> &get_end() {
         return end;
     }
 
   private:
-    std::shared_ptr<ast_tag_t> source;
-    std::shared_ptr<ast_tag_t> end;
+    shared_ptr<ast_tag_t> source;
+    shared_ptr<ast_tag_t> end;
 };
 
 class ast_topology_basic_t : public ast_topology_t {
   public:
-    void add_edge(const std::shared_ptr<ast_edge_t> &e) {
+    void add_edge(const shared_ptr<ast_edge_t> &e) {
         edges.push_back(e);
     }
 
-    std::vector<std::shared_ptr<ast_edge_t>> get_edges() {
+    vector<shared_ptr<ast_edge_t>> get_edges() {
         return edges;
     }
 
     void print() {
-        std::cout << "Basic topology '" << name << "'" << std::endl;
-        std::cout << "Edges: " << std::endl;
+        cout << "Basic topology '" << name << "'" << endl;
+        cout << "Edges: " << endl;
         for (auto &e : edges) {
             e.get()->print();
         }
     }
 
   private:
-    std::vector<std::shared_ptr<ast_edge_t>> edges;
+    vector<shared_ptr<ast_edge_t>> edges;
 };
 
 class ast_edges_t : public ast_node_t {
@@ -224,54 +234,54 @@ class ast_edges_t : public ast_node_t {
         }
     }
 
-    std::vector<std::shared_ptr<ast_edge_t>> &get_edges() {
+    vector<shared_ptr<ast_edge_t>> &get_edges() {
         return edges;
     }
 
-    void add_edge(const std::shared_ptr<ast_edge_t> &e) {
+    void add_edge(const shared_ptr<ast_edge_t> &e) {
         edges.push_back(e);
     }
 
   private:
-    std::vector<std::shared_ptr<ast_edge_t>> edges;
+    vector<shared_ptr<ast_edge_t>> edges;
 };
 
 class ast_topology_linear_t : public ast_topology_t {
   public:
-    void add_tag(const std::shared_ptr<ast_tag_t> &t) {
+    void add_tag(const shared_ptr<ast_tag_t> &t) {
         tags.push_back(t);
     }
 
-    std::vector<std::shared_ptr<ast_tag_t>> &get_tags() {
+    vector<shared_ptr<ast_tag_t>> &get_tags() {
         return tags;
     }
 
     void print() {
-        std::cout << "Linear topology: " << std::endl;
+        cout << "Linear topology: " << endl;
         for (auto &t : tags) {
             t.get()->print();
         }
     }
 
   private:
-    std::vector<std::shared_ptr<ast_tag_t>> tags;
+    vector<shared_ptr<ast_tag_t>> tags;
 };
 
 class ast_topology_expr_t : public ast_topology_t {
   public:
-    ast_topology_expr_t(const std::shared_ptr<ast_expr_t> &e) : expr(e) {}
+    ast_topology_expr_t(const shared_ptr<ast_expr_t> &e) : expr(e) {}
 
     void print() {
-        std::cout << "Expr topology: '" << name << "'" << std::endl;
+        cout << "Expr topology: '" << name << "'" << endl;
         expr->print();
     }
 
-    std::shared_ptr<ast_expr_t> &get_expr() {
+    shared_ptr<ast_expr_t> &get_expr() {
         return expr;
     }
 
   private:
-    std::shared_ptr<ast_expr_t> expr;
+    shared_ptr<ast_expr_t> expr;
 };
 
 class ast_expr_bin_t : public ast_expr_t {
@@ -283,24 +293,24 @@ class ast_expr_bin_t : public ast_expr_t {
 
     ast_expr_bin_t(
         const Oper o,
-        const std::shared_ptr<ast_expr_t> &l,
-        const std::shared_ptr<ast_expr_t> &r
+        const shared_ptr<ast_expr_t> &l,
+        const shared_ptr<ast_expr_t> &r
     ) :
         oper(o), lhs(l), rhs(r) {}
 
-    void set_lhs(const std::shared_ptr<ast_expr_t> &l) {
+    void set_lhs(const shared_ptr<ast_expr_t> &l) {
         lhs = l;
     }
 
-    std::shared_ptr<ast_expr_t> &get_lhs() {
+    shared_ptr<ast_expr_t> &get_lhs() {
         return lhs;
     }
 
-    void set_rhs(const std::shared_ptr<ast_expr_t> &r) {
+    void set_rhs(const shared_ptr<ast_expr_t> &r) {
         rhs = r;
     }
 
-    std::shared_ptr<ast_expr_t> &get_rhs() {
+    shared_ptr<ast_expr_t> &get_rhs() {
         return rhs;
     }
 
@@ -309,22 +319,21 @@ class ast_expr_bin_t : public ast_expr_t {
     }
 
     void print() {
-        std::cout << "\tLeft side:" << std::endl << "\t";
+        cout << "\tLeft side:" << endl << "\t";
         lhs.get()->print();
-        std::cout << "\t\t" << (oper == Oper::MUL ? "*" : "+") << std::endl
-                  << "\t";
-        std::cout << "\tRight side:" << std::endl << "\t";
+        cout << "\t\t" << (oper == Oper::MUL ? "*" : "+") << endl << "\t";
+        cout << "\tRight side:" << endl << "\t";
         rhs.get()->print();
     }
 
   private:
     Oper oper;
-    std::shared_ptr<ast_expr_t> lhs;
-    std::shared_ptr<ast_expr_t> rhs;
+    shared_ptr<ast_expr_t> lhs;
+    shared_ptr<ast_expr_t> rhs;
 };
 
-std::shared_ptr<ast_node_t> ast_construct(
-    const dertree_t &node, std::shared_ptr<ast_node_t> arg
+shared_ptr<ast_node_t> ast_construct(
+    const dertree_t &node, shared_ptr<ast_node_t> arg
 );
 
 #endif

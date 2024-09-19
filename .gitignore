@@ -54,3 +54,6 @@ autom4te.cache/
 !time-tags.out
 !measurements.out
 !args.in
+
+#CLion
+.idea/

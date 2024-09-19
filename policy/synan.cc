@@ -2,7 +2,7 @@
 
 #include "lexer.h"
 
-// #include <exception>
+#include <exception>
 #include <sstream>
 
 static dertree_t parse_decls(std::vector<symbol_t> &symbols);
@@ -158,9 +158,14 @@ static dertree_t parse_decl(std::vector<symbol_t> &symbols) {
         case Term::TOPOLOGY:
             t.subtrees.push_back(parse_topology(symbols));
             break;
-        case Term::PG: t.subtrees.push_back(parse_pg(symbols)); break;
-        case Term::AWARE: t.subtrees.push_back(parse_aware(symbols)); break;
-        default: throw std::runtime_error(error_msg(s, "declarations"));
+        case Term::PG:
+            t.subtrees.push_back(parse_pg(symbols));
+            break;
+        case Term::AWARE:
+            t.subtrees.push_back(parse_aware(symbols));
+            break;
+        default:
+            throw std::runtime_error(error_msg(s, "declarations"));
     }
     return t;
 }
@@ -170,12 +175,16 @@ static dertree_t parse_declrest(std::vector<symbol_t> &symbols) {
     t.label = Nont::DECLREST;
     auto &s = peek(symbols, "Missing declarations!");
     switch (s.term) {
-        case Term::END: break;
+        case Term::END:
+            break;
         case Term::TOPOLOGY:
+        case Term::PG:
+        case Term::AWARE:
             t.subtrees.push_back(parse_decl(symbols));
             t.subtrees.push_back(parse_declrest(symbols));
             break;
-        default: throw std::runtime_error(error_msg(s, "declarations"));
+        default:
+            throw std::runtime_error(error_msg(s, "declarations"));
     }
     return t;
 }
@@ -219,8 +228,12 @@ static dertree_t parse_topology_rest(std::vector<symbol_t> &symbols) {
             t.subtrees.push_back(parse_basic(symbols));
             add_leaf(t, symbols, Term::RBRACE, "'}");
             break;
-        case Term::LINEAR: t.subtrees.push_back(parse_linear(symbols)); break;
-        case Term::EXPR: t.subtrees.push_back(parse_expr(symbols)); break;
+        case Term::LINEAR:
+            t.subtrees.push_back(parse_linear(symbols));
+            break;
+        case Term::EXPR:
+            t.subtrees.push_back(parse_expr(symbols));
+            break;
         default:
             std::ostringstream oss;
             oss << "Unsupported topology type '" << s.name
@@ -256,14 +269,16 @@ static dertree_t parse_edge_rest(std::vector<symbol_t> &symbols) {
 
     auto &s = peek(symbols, "Missing a ',' or '}'!");
     switch (s.term) {
-        case Term::RBRACE: break;
+        case Term::RBRACE:
+            break;
         case Term::COMMA:
             t.leaves.push_back(s);
             consume(symbols, "Missing a ','!");
             t.subtrees.push_back(parse_edge(symbols));
             t.subtrees.push_back(parse_edge_rest(symbols));
             break;
-        default: throw std::runtime_error(error_msg(s, "',' or '}'"));
+        default:
+            throw std::runtime_error(error_msg(s, "',' or '}'"));
     }
     return t;
 }
@@ -284,13 +299,15 @@ static dertree_t parse_linear_rest(std::vector<symbol_t> &symbols) {
     switch (s.term) {
         case Term::TOPOLOGY:
         case Term::END:
-        case Term::PG: break;
+        case Term::PG:
+            break;
         case Term::COMMA:
             t.leaves.push_back(s);
             consume(symbols, "Missing a ','!");
             t.subtrees.push_back(parse_linear(symbols));
             break;
-        default: throw std::runtime_error(error_msg(s, ","));
+        default:
+            throw std::runtime_error(error_msg(s, ","));
     }
 
     return t;
@@ -302,8 +319,11 @@ static dertree_t parse_expr(std::vector<symbol_t> &symbols) {
     auto &s = peek(symbols, "Missing an identifier or expression!");
     switch (s.term) {
         case Term::IDENTIFIER:
-        case Term::LPAREN: t.subtrees.push_back(parse_sum(symbols)); break;
-        default: throw std::runtime_error(error_msg(s, "an identifier or '('"));
+        case Term::LPAREN:
+            t.subtrees.push_back(parse_sum(symbols));
+            break;
+        default:
+            throw std::runtime_error(error_msg(s, "an identifier or '('"));
     }
 
     return t;
@@ -319,7 +339,8 @@ static dertree_t parse_sum(std::vector<symbol_t> &symbols) {
             t.subtrees.push_back(parse_mul(symbols));
             t.subtrees.push_back(parse_sum_rest(symbols));
             break;
-        default: throw std::runtime_error(error_msg(s, "an identifier or '('"));
+        default:
+            throw std::runtime_error(error_msg(s, "an identifier or '('"));
     }
 
     return t;
@@ -333,7 +354,8 @@ static dertree_t parse_sum_rest(std::vector<symbol_t> &symbols) {
         case Term::TOPOLOGY:
         case Term::RPAREN:
         case Term::END:
-        case Term::PG: break;
+        case Term::PG:
+            break;
         case Term::PLUS:
             t.leaves.push_back(s);
             consume(symbols, "Missing a '+'!");
@@ -357,7 +379,8 @@ static dertree_t parse_mul(std::vector<symbol_t> &symbols) {
             t.subtrees.push_back(parse_elem(symbols));
             t.subtrees.push_back(parse_mul_rest(symbols));
             break;
-        default: throw std::runtime_error(error_msg(s, "an identifier or '('"));
+        default:
+            throw std::runtime_error(error_msg(s, "an identifier or '('"));
     }
     return t;
 }
@@ -371,7 +394,8 @@ static dertree_t parse_mul_rest(std::vector<symbol_t> &symbols) {
         case Term::RPAREN:
         case Term::END:
         case Term::PLUS:
-        case Term::PG: break;
+        case Term::PG:
+            break;
         case Term::MULT:
             t.leaves.push_back(s);
             consume(symbols, "Missing a '*'");
@@ -389,7 +413,9 @@ static dertree_t parse_elem(std::vector<symbol_t> &symbols) {
     t.label = Nont::ELEM;
     auto &s = consume(symbols, "Missing an identifier or a nested expression!");
     switch (s.term) {
-        case Term::IDENTIFIER: t.leaves.push_back(s); break;
+        case Term::IDENTIFIER:
+            t.leaves.push_back(s);
+            break;
         case Term::LPAREN:
             t.leaves.push_back(s);
             t.subtrees.push_back(parse_sum(symbols));
