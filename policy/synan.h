@@ -29,6 +29,13 @@ enum class Nont {
     PG_REST
 };
 
+/**
+ * Structure that holds the symbol analysis.
+ * @param label: a non-terminal that corresponds with the current position along
+ * of our symbol analysis.
+ * @param subtrees: they hold non-terminals.
+ * @param leaves: they hold terminals.
+ */
 struct dertree_t {
     Nont label;
     std::vector<dertree_t> subtrees;

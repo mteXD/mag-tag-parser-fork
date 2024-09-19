@@ -1,5 +1,6 @@
 #include "ast.h"
 
+#include <memory>
 #include <stdexcept>
 
 ast_node_t::~ast_node_t() {}
@@ -43,7 +44,8 @@ std::shared_ptr<ast_node_t> ast_construct(
                 }
                 return pdecls;
             }
-        case Nont::DECL: return ast_construct(node.subtrees.at(0), nullptr);
+        case Nont::DECL:
+            return ast_construct(node.subtrees.at(0), nullptr);
         case Nont::TOPOLOGY:
             {
                 auto pt = std::dynamic_pointer_cast<ast_topology_t>(
@@ -54,11 +56,24 @@ std::shared_ptr<ast_node_t> ast_construct(
             }
         case Nont::AWARE:
             {
-                auto pt = std::dynamic_pointer_cast<ast_aware_t>(
+                if (node.subtrees.size() == 0) {
+                    return nullptr;
+                }
+
+                // feeling like this will cause problems later on
+                auto pa = make_shared<ast_aware_t>();
+
+                auto pt = std::dynamic_pointer_cast<ast_topology_t>(
                     ast_construct(node.subtrees.at(0), nullptr)
                 );
-                pt->set_name(node.leaves.at(1).name);
-                return pt;
+                if (!pt || !pa) {
+                    return nullptr;
+                }
+
+                pa->set_topology(pt);
+                pa->set_name(node.leaves.at(1).name);
+
+                return pa;
             }
         case Nont::TOPOLOGYREST:
             return ast_construct(node.subtrees.at(0), nullptr);
@@ -176,6 +191,7 @@ std::shared_ptr<ast_node_t> ast_construct(
                     node.leaves.at(2).name, node.leaves.at(5).name
                 );
             }
-        default: throw std::runtime_error("Unknown syntax!");
+        default:
+            throw std::runtime_error("Unknown syntax!");
     }
 }
