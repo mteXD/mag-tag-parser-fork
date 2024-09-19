@@ -249,11 +249,12 @@ static shared_ptr<topology_basic_t> construct_expr_topology(
     }
 }
 
-static map<string, shared_ptr<topology_t>> get_awares(
+static map<string, shared_ptr<aware_t>> get_awares(
     const shared_ptr<ast_node_t> &ast, const topology_basic_t &topology
 ) {
     map<string, shared_ptr<aware_t>> topologies;
 
+    return topologies;
 }
 
 static vector<pg_t> get_pgs(
