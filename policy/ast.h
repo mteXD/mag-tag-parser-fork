@@ -53,8 +53,9 @@ class ast_topology_t : public ast_decl_t {
 
   protected:
     string name;
-}; /* Derived classes */
+};
 
+/* Derived classes */
 class ast_pg_t : public ast_decl_t {
   public:
     ast_pg_t(const string &file, const string &tag) : tag(tag), file(file) {}
@@ -89,18 +90,13 @@ class ast_pg_t : public ast_decl_t {
 
 class ast_aware_t : public ast_decl_t {
   public:
-    ~ast_aware_t() {}
+    ast_aware_t(string n, shared_ptr<ast_topology_t> t) :
+        name(n), topology(t) {}
 
-    void set_name(const string &n) {
-        name = n;
-    }
+    ~ast_aware_t() {}
 
     string &get_name() {
         return name;
-    }
-
-    void set_topology(const shared_ptr<ast_topology_t> &n) {
-        topology = n;
     }
 
     shared_ptr<ast_topology_t> &get_topology() {
@@ -111,7 +107,7 @@ class ast_aware_t : public ast_decl_t {
         topology->print();
     }
 
-  protected:
+  private:
     string name;
     shared_ptr<ast_topology_t> topology;
 };

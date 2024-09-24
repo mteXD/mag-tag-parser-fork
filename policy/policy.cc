@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <list>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
@@ -25,6 +26,10 @@ static shared_ptr<topology_basic_t> construct_expr_topology(
     shared_ptr<ast_expr_t> &expr,
     map<string, shared_ptr<topology_t>> &topologies,
     shared_ptr<topology_basic_t> &arg
+);
+
+static map<string, shared_ptr<aware_t>> get_awares(
+    const shared_ptr<ast_node_t> &ast, const topology_basic_t &topology
 );
 
 static vector<pg_t> get_pgs(
@@ -82,6 +87,8 @@ policy_t::policy_t(const char *file_path) {
 
     tags.insert("unknown");
     topology->add_unknown();
+
+    aware_connections = get_awares(ast, *topology);
 
     // check DAG (Directed Acyclic Graph)
     topological_ordering(topology->matrix());
@@ -253,6 +260,68 @@ static map<string, shared_ptr<aware_t>> get_awares(
     const shared_ptr<ast_node_t> &ast, const topology_basic_t &topology
 ) {
     map<string, shared_ptr<aware_t>> topologies;
+
+    if (auto source = dynamic_pointer_cast<ast_source_t>(ast)) {
+        for (auto &decl : source->get_decls()) {
+            if (auto var_aware = dynamic_pointer_cast<ast_aware_t>(decl)) {
+                auto aware_decl = var_aware->get_topology();
+
+                // Check for double definition
+                if (topologies.find(aware_decl->get_name())
+                    != topologies.end()) {
+                    ostringstream oss;
+                    oss << "Topology '" << aware_decl->get_name()
+                        << "' cannot be declared twice!";
+                    throw runtime_error(oss.str());
+                }
+
+                if (auto t
+                    = dynamic_pointer_cast<ast_topology_basic_t>(aware_decl)) {
+
+                    set<string> vertices;
+                    for (auto &edge : t->get_edges()) {
+                        int tag;
+                        string name;
+                        try {
+                            // source; tag must already exist
+                            name = edge->get_source()->get_name();
+                            tag  = topology.get_index(name);
+                            vertices.insert(name);
+
+                            // end; tag must already exist
+                            name = edge->get_end()->get_name();
+                            tag  = topology.get_index(name);
+                            vertices.insert(name);
+                        } catch (out_of_range &e) {
+                            ostringstream oss;
+                            oss << "Unknown tag for aware policy: '" << name
+                                << "' isn't yet defined!";
+                            throw runtime_error(oss.str());
+                        }
+                    }
+
+                    auto basic = make_shared<topology_basic_t>(
+                        t->get_name(), vertices
+                    );
+                    for (auto &edge : t->get_edges()) {
+                        basic->add_edge(
+                            edge->get_source()->get_name(),
+                            edge->get_end()->get_name()
+                        );
+                    }
+
+                    // t->get_name() and var_aware->get_name() are the same.
+                    topologies[t->get_name()]
+                        = make_shared<aware_t>(var_aware->get_name(), basic);
+                } else {
+                    ostringstream oss;
+                    oss << "UNSUPPORTED FEATURE: for now, only 'basic' aware "
+                           "policies are allowed!";
+                    throw runtime_error(oss.str());
+                }
+            }
+        }
+    }
 
     return topologies;
 }

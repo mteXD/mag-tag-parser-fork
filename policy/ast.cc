@@ -60,18 +60,20 @@ std::shared_ptr<ast_node_t> ast_construct(
                     return nullptr;
                 }
 
-                // feeling like this will cause problems later on
-                auto pa = make_shared<ast_aware_t>();
-
                 auto pt = std::dynamic_pointer_cast<ast_topology_t>(
                     ast_construct(node.subtrees.at(0), nullptr)
                 );
-                if (!pt || !pa) {
+                if (!pt) {
                     return nullptr;
                 }
 
-                pa->set_topology(pt);
-                pa->set_name(node.leaves.at(1).name);
+                // this is dumb and lazy, but I can come up with no easy fix.
+                // It sets the aware's underlying topology name to the same name
+                // as the aware itself.
+                pt->set_name(node.leaves.at(1).name);
+
+                // feeling like this will cause problems later on
+                auto pa = make_shared<ast_aware_t>(node.leaves.at(1).name, pt);
 
                 return pa;
             }

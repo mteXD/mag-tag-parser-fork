@@ -163,7 +163,7 @@ class policy_t {
     vector<vector<uint8_t>> lca_matrix;
     vector<pg_t> perimeter_guards;
 
-    map<string, shared_ptr<topology_t>> aware_connections;
+    map<string, shared_ptr<aware_t>> aware_connections;
 };
 
 #endif
