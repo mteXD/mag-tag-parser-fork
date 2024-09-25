@@ -2,6 +2,10 @@ topology PP : basic {
         "public" -> "private"
 }
 
+aware priv2pub : basic {
+        "PP.private" -> "PP.public"
+}
+
 pg output {
         file : "stdout"
         tag = "PP.public"

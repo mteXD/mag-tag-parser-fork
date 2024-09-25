@@ -1,6 +1,7 @@
 #ifndef _POLICY_POLICY_H_
 #define _POLICY_POLICY_H_
 
+#include <cstdint>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -119,10 +120,15 @@ struct pg_t {
 
 struct aware_t {
     string name;
-    shared_ptr<topology_t> topology;
+    shared_ptr<topology_basic_t> topology;
+    shared_ptr<vector<pair<uint8_t, uint8_t>>> from_to;
 
-    aware_t(const string &n, const shared_ptr<topology_t> t) :
-        name(n), topology(t) {}
+    aware_t(
+        const string &n,
+        const shared_ptr<topology_basic_t> tp,
+        const shared_ptr<vector<pair<uint8_t, uint8_t>>> ft
+    ) :
+        name(n), topology(tp), from_to(ft) {}
 };
 
 class policy_t {

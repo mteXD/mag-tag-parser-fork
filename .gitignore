@@ -1,5 +1,6 @@
 compile_commands.json
 .cache
+compile_and_run*.sh
 
 # Prerequisites
 *.d

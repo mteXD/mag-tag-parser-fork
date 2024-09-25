@@ -88,8 +88,6 @@ policy_t::policy_t(const char *file_path) {
     tags.insert("unknown");
     topology->add_unknown();
 
-    aware_connections = get_awares(ast, *topology);
-
     // check DAG (Directed Acyclic Graph)
     topological_ordering(topology->matrix());
 
@@ -121,6 +119,8 @@ policy_t::policy_t(const char *file_path) {
      * would normally get further processed into a LCA matrix, but here there we
      * must print the adjacency matrix to the policy.mtag
      */
+
+    aware_connections = get_awares(ast, *topology);
 }
 
 /**
@@ -277,21 +277,24 @@ static map<string, shared_ptr<aware_t>> get_awares(
 
                 if (auto t
                     = dynamic_pointer_cast<ast_topology_basic_t>(aware_decl)) {
-
+                    auto from_to
+                        = make_shared<vector<pair<uint8_t, uint8_t>>>();
                     set<string> vertices;
                     for (auto &edge : t->get_edges()) {
-                        int tag;
                         string name;
                         try {
                             // source; tag must already exist
                             name = edge->get_source()->get_name();
-                            tag  = topology.get_index(name);
+
+                            auto tag_source = topology.get_index(name);
                             vertices.insert(name);
 
                             // end; tag must already exist
-                            name = edge->get_end()->get_name();
-                            tag  = topology.get_index(name);
+                            name         = edge->get_end()->get_name();
+                            auto tag_end = topology.get_index(name);
                             vertices.insert(name);
+
+                            from_to->push_back({tag_source, tag_end});
                         } catch (out_of_range &e) {
                             ostringstream oss;
                             oss << "Unknown tag for aware policy: '" << name
@@ -311,8 +314,9 @@ static map<string, shared_ptr<aware_t>> get_awares(
                     }
 
                     // t->get_name() and var_aware->get_name() are the same.
-                    topologies[t->get_name()]
-                        = make_shared<aware_t>(var_aware->get_name(), basic);
+                    topologies[t->get_name()] = make_shared<aware_t>(
+                        var_aware->get_name(), basic, from_to
+                    );
                 } else {
                     ostringstream oss;
                     oss << "UNSUPPORTED FEATURE: for now, only 'basic' aware "
@@ -544,6 +548,8 @@ int policy_t::tag_index(const string &tag) const {
 }
 
 int topology_basic_t::get_index(const string &tag) const {
+    // cout << tag << endl;
+    // cout << remove_space(tag) << endl;
     return toindex.at(remove_space(tag));
 }
 
@@ -585,7 +591,8 @@ void topology_basic_t::add_unknown() {
 }
 
 void policy_t::dump(ofstream &out) {
-    out << topology->size() << " " << perimeter_guards.size() << endl;
+    out << topology->size() << " " << perimeter_guards.size() << " "
+        << aware_connections.size() << endl;
     for (size_t i = 0; i < lca_matrix.size(); i++) {
         out << topology->get_tag(i);
         for (size_t j = 0; j < lca_matrix[i].size(); j++) {
@@ -596,6 +603,14 @@ void policy_t::dump(ofstream &out) {
 
     for (auto &pg : perimeter_guards) {
         out << pg.name << " \"" << pg.file << "\" " << (int) pg.tag << endl;
+    }
+
+    for (auto &aw : aware_connections) {
+        out << aw.first << " " << aw.second->from_to->size();
+        for (auto const &i : *aw.second->from_to) {
+            out << " " << to_string(i.first) << " " << to_string(i.second);
+        }
+        out << endl;
     }
 }
 
